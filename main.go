@@ -3,40 +3,7 @@ package main
 import (
 	"fmt"
 	"reflect"
-	"strings"
 )
-
-type example struct {
-	message string
-}
-
-type exampleInner struct {
-	message string
-}
-
-func (e *example) Test() {
-	fmt.Println("Test")
-}
-
-func (e *example) TestWithParam(s string) {
-	fmt.Println(s)
-}
-
-func (e *example) TestWithParamAndReturn(s string) string {
-	return strings.ToLower(s)
-}
-
-func (e *example) TestWithInnerStructAndParamAndReturn(s string) *exampleInner {
-	return &exampleInner{
-		message: e.message + " " + s,
-	}
-}
-
-func (e *example) TestWithParamInnerStruct(i *exampleInner) *example {
-	return &example{
-		message: e.message + " " + i.message,
-	}
-}
 
 // Examples
 func callTestNormally(e *example) {
@@ -99,7 +66,7 @@ func callTestWithInnerStructAndParamAndReturnWithReflection(e *example, s string
 	return &exampleInner{}
 }
 
-func callTestWithParamInnerStructNormally(e *example, i *exampleInner) *example {
+func callTestWithParamInnerStructNormally(e *example, i exampleInner) *example {
 	return e.TestWithParamInnerStruct(i)
 }
 
@@ -107,7 +74,25 @@ func callTestWithParamInnerStructWithReflection(e *example, i *exampleInner) *ex
 	m := "TestWithParamInnerStruct"
 
 	element := reflect.ValueOf(e).MethodByName(m)
-	called := element.Call([]reflect.Value{reflect.ValueOf(i)})
+	called := element.Call([]reflect.Value{reflect.ValueOf(*i)})
+
+	if casted, ok := called[0].Interface().(*example); ok {
+		return casted
+	}
+
+	return &example{}
+}
+
+func callTestWithParamInnerStructWithReflection2(e *example, i, message string) *example {
+	m := "TestWithParamInnerStruct"
+
+	it, err := typeRegistry.Get(i)
+	if err != nil {
+		panic(err)
+	}
+
+	element := reflect.ValueOf(e).MethodByName(m)
+	called := element.Call([]reflect.Value{reflect.ValueOf(it)})
 
 	if casted, ok := called[0].Interface().(*example); ok {
 		return casted
@@ -141,6 +126,8 @@ func main() {
 		message: "World!",
 	}
 
-	t := callTestWithParamInnerStructWithReflection(e, i)
+	//t := callTestWithParamInnerStructWithReflection(e, i)
+	//fmt.Println(t.message)
+	t := callTestWithParamInnerStructWithReflection2(e, "exampleInner", i.message)
 	fmt.Println(t.message)
 }
